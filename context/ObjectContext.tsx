@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import type React from "react";
 import { createContext, useState, useEffect, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -15,6 +17,8 @@ interface ObjectContextType {
   addObject: (object: Omit<ObjectItem, "id">) => Promise<void>;
   getObjectCount: () => number;
   MAX_OBJECTS: number;
+  selectedObject: ObjectItem | null;
+  setSelectedObject: (object: ObjectItem | null) => void;
 }
 
 const ObjectContext = createContext<ObjectContextType | undefined>(undefined);
@@ -23,6 +27,7 @@ export const ObjectProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [objects, setObjects] = useState<ObjectItem[]>([]);
+  const [selectedObject, setSelectedObject] = useState<ObjectItem | null>(null);
   const MAX_OBJECTS = 3;
 
   useEffect(() => {
@@ -68,7 +73,14 @@ export const ObjectProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <ObjectContext.Provider
-      value={{ objects, addObject, getObjectCount, MAX_OBJECTS }}
+      value={{
+        objects,
+        addObject,
+        getObjectCount,
+        MAX_OBJECTS,
+        selectedObject,
+        setSelectedObject,
+      }}
     >
       {children}
     </ObjectContext.Provider>

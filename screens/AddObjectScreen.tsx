@@ -53,10 +53,14 @@ export default function AddObjectScreen() {
 
   const closeModal = () => {
     setIsModalVisible(false);
-    navigation.goBack();
+
+    // Automatically navigate to the object list screen when the limit is reached
+    if (getObjectCount() === MAX_OBJECTS) {
+      navigation.navigate("ObjectSummary" as never);
+    }
   };
 
-  const currentStep = getObjectCount() + 1;
+  const currentStep = getObjectCount(); // Start counting from 1/3
 
   return (
     <SafeAreaView style={styles.container}>
