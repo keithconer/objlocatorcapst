@@ -1,28 +1,55 @@
 {
   "expo": {
-    "name": "search-it-app",
+    "name": "Search It",
     "slug": "search-it-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/imgs/logo.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/imgs/logo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.keithconerrr.searchitapp"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-font",
+      "react-native-ble-plx"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "ead658e1-a91d-438e-9054-d1fd4fbf800b"
+      }
     }
   }
 }
