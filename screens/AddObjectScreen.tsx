@@ -13,12 +13,10 @@ import {
   Modal,
   ActivityIndicator,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
 import { useObjects } from "../context/ObjectContext";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function AddObjectScreen() {
-  const navigation = useNavigation();
   const { addObject, getObjectCount, MAX_OBJECTS } = useObjects();
 
   const [name, setName] = useState("");
@@ -40,7 +38,6 @@ export default function AddObjectScreen() {
         description: description.trim(),
       });
 
-      // Simulate a brief loading period
       setTimeout(() => {
         setIsLoading(false);
         setIsModalVisible(true);
@@ -53,11 +50,6 @@ export default function AddObjectScreen() {
 
   const closeModal = () => {
     setIsModalVisible(false);
-
-    // Automatically navigate to the object list screen when the limit is reached
-    if (getObjectCount() === MAX_OBJECTS) {
-      navigation.navigate("ObjectSummary" as never);
-    }
   };
 
   const currentStep = getObjectCount(); // Start counting from 1/3
@@ -69,13 +61,9 @@ export default function AddObjectScreen() {
         style={styles.keyboardAvoid}
       >
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#1E88E5" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Object</Text>
+          <Text style={styles.headerTitle}>
+            Add Object ({currentStep}/{MAX_OBJECTS})
+          </Text>
         </View>
 
         <View style={styles.form}>
@@ -106,7 +94,7 @@ export default function AddObjectScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Ionicons name="checkmark" size={20} color="#fff" />
+                <Ionicons name="add-circle" size={20} color="#fff" />
                 <Text style={styles.confirmButtonText}>Confirm Object</Text>
               </>
             )}
@@ -128,18 +116,12 @@ export default function AddObjectScreen() {
               object you've added.
             </Text>
 
-            <Text style={styles.stepIndicator}>
-              {currentStep}/{MAX_OBJECTS}
-            </Text>
-
             <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
-      <Text style={styles.footer}>Search It, 2025. All Rights Reserved.</Text>
     </SafeAreaView>
   );
 }
@@ -153,22 +135,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 10,
-  },
-  backButton: {
-    padding: 5,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
-    flex: 1,
-    textAlign: "center",
     fontSize: 18,
     fontWeight: "600",
     color: "#1E88E5",
-    marginRight: 30, // To offset the back button and center the title
   },
   form: {
     flex: 1,
@@ -240,12 +216,6 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 20,
   },
-  stepIndicator: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1E88E5",
-    marginBottom: 20,
-  },
   closeButton: {
     backgroundColor: "#1E88E5",
     borderRadius: 8,
@@ -258,11 +228,5 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
-  },
-  footer: {
-    textAlign: "center",
-    color: "#666",
-    fontSize: 12,
-    marginBottom: 20,
   },
 });

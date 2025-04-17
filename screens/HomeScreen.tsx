@@ -9,10 +9,18 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useObjects } from "../context/ObjectContext";
+import { useEffect } from "react";
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { getObjectCount, MAX_OBJECTS } = useObjects();
+
+  useEffect(() => {
+    // Redirect to ObjectSummaryScreen if the maximum objects are reached
+    if (getObjectCount() >= MAX_OBJECTS) {
+      navigation.navigate("ObjectSummary" as never);
+    }
+  }, [getObjectCount]);
 
   return (
     <SafeAreaView style={styles.container}>

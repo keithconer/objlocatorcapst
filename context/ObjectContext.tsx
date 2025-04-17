@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import type React from "react";
 import { createContext, useState, useEffect, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
