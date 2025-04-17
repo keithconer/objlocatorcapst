@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage for persistent storage
 import { useNavigation } from "@react-navigation/native";
 import {
   StyleSheet,
@@ -11,17 +12,46 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useObjects, ObjectItem } from "../context/ObjectContext";
 import { useEffect, useState } from "react";
+
+interface ObjectItem {
+  id: string;
+  name: string;
+  description: string;
+}
 
 export default function ObjectSummaryScreen() {
   const navigation = useNavigation();
-  const { objects, selectedObject, setSelectedObject } = useObjects();
-
+  const [objects, setObjects] = useState<ObjectItem[]>([]);
+  const [selectedObject, setSelectedObject] = useState<ObjectItem | null>(null);
   const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
-  const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
   const [renamingObject, setRenamingObject] = useState<ObjectItem | null>(null);
   const [newName, setNewName] = useState("");
+  const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
+
+  // Load objects from storage when the app starts
+  useEffect(() => {
+    const loadObjects = async () => {
+      try {
+        const storedObjects = await AsyncStorage.getItem("objects");
+        if (storedObjects) {
+          setObjects(JSON.parse(storedObjects));
+        } else {
+          // If no objects are found in storage, initialize with default data
+          const defaultObjects = [
+            { id: "1", name: "Object 1", description: "Description 1" },
+            { id: "2", name: "Object 2", description: "Description 2" },
+            { id: "3", name: "Object 3", description: "Description 3" },
+          ];
+          setObjects(defaultObjects);
+        }
+      } catch (error) {
+        console.error("Failed to load objects:", error);
+      }
+    };
+
+    loadObjects();
+  }, []);
 
   // Disable the hardware back button
   useEffect(() => {
@@ -52,15 +82,25 @@ export default function ObjectSummaryScreen() {
     setIsRenameModalVisible(true);
   };
 
-  const handleRenameObject = () => {
+  const handleRenameObject = async () => {
     if (!renamingObject || !newName.trim()) {
       alert("Please enter a valid name.");
       return;
     }
 
-    renamingObject.name = newName.trim(); // Update the name locally
-    setIsRenameModalVisible(false); // Close the rename modal
-    setIsSuccessModalVisible(true); // Show the success modal
+    const updatedObjects = objects.map((obj) =>
+      obj.id === renamingObject.id ? { ...obj, name: newName.trim() } : obj
+    );
+
+    setObjects(updatedObjects); // Update the state
+
+    try {
+      await AsyncStorage.setItem("objects", JSON.stringify(updatedObjects)); // Save to persistent storage
+      setIsRenameModalVisible(false); // Close the rename modal
+      setIsSuccessModalVisible(true); // Show the success modal
+    } catch (error) {
+      console.error("Failed to save renamed object:", error);
+    }
   };
 
   return (
