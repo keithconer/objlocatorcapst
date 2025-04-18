@@ -83,18 +83,6 @@ const SearchActionsScreen = ({
     return () => animation.stop();
   }, [opacity]);
 
-  // Reconnection logic
-  const reconnectDevice = async () => {
-    if (!connectedDevice) return;
-
-    try {
-      await connectedDevice.connect();
-      console.log("Reconnected to ESP32 successfully.");
-    } catch (error) {
-      console.error("Error reconnecting to ESP32:", error);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Logo and Header */}
@@ -116,10 +104,16 @@ const SearchActionsScreen = ({
         </Animated.View>
       </View>
 
+      {/* Action Buttons for Light and Buzzer */}
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.actionButton} onPress={reconnectDevice}>
-          <Ionicons name="refresh" size={24} color="#1E88E5" />
-          <Text style={styles.actionText}>Reconnect</Text>
+        <TouchableOpacity style={styles.actionButton}>
+          <Ionicons name="flash" size={24} color="#1E88E5" />
+          <Text style={styles.actionText}>Light</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton}>
+          <Ionicons name="volume-high" size={24} color="#1E88E5" />
+          <Text style={styles.actionText}>Buzzer</Text>
         </TouchableOpacity>
       </View>
 
@@ -131,7 +125,10 @@ const SearchActionsScreen = ({
         animationType="fade"
         transparent={true}
         visible={disconnectModalVisible}
-        onRequestClose={() => setDisconnectModalVisible(false)}
+        onRequestClose={() => {
+          setDisconnectModalVisible(false);
+          navigation.goBack(); // Navigate back to Object Summary screen
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -144,9 +141,12 @@ const SearchActionsScreen = ({
             </Text>
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={() => setDisconnectModalVisible(false)}
+              onPress={() => {
+                setDisconnectModalVisible(false);
+                navigation.goBack(); // Navigate back to Object Summary screen
+              }}
             >
-              <Text style={styles.modalButtonText}>Close</Text>
+              <Text style={styles.modalButtonText}>Go Back</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -162,8 +162,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: 100,
-    height: 100,
+    width: 80, // Reduced size of the logo
+    height: 80,
     alignSelf: "center",
     marginBottom: 10,
     resizeMode: "contain",
