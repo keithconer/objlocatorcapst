@@ -26,13 +26,13 @@ const SearchActionsScreen = ({
   const { connectedDevice, objectName = "object" } = route.params || {};
   const [rssi, setRssi] = useState<number | null>(null);
   const [proximity, setProximity] = useState<string>("Unknown");
-  const opacity = useRef(new Animated.Value(1)).current; // For blinking effect
+  const opacity = useRef(new Animated.Value(1)).current;
 
   // Modal states
   const [disconnectModalVisible, setDisconnectModalVisible] =
     useState<boolean>(false);
 
-  // Function to determine proximity from RSSI
+  // Determine proximity based on RSSI
   const getProximityLabel = (rssiValue: number): string => {
     if (rssiValue >= -50) return "Very Near";
     if (rssiValue >= -63) return "Near";
@@ -40,7 +40,6 @@ const SearchActionsScreen = ({
     return "Very Far";
   };
 
-  // Real-time RSSI updates
   useEffect(() => {
     if (!connectedDevice) return;
 
@@ -53,26 +52,16 @@ const SearchActionsScreen = ({
           setRssi(rssiValue);
           setProximity(getProximityLabel(rssiValue));
         }
-      } catch (err) {
-        console.error("Error reading RSSI:", err);
+      } catch (error) {
+        console.error("Error reading RSSI:", error);
       }
     };
 
-    const interval = setInterval(updateRSSI, 500); // Updated every 500ms for real-time updates
+    const interval = setInterval(updateRSSI, 1000);
 
-    // Listen for disconnection
-    const disconnectSubscription = connectedDevice.onDisconnected(() => {
-      console.log("Device Disconnected!");
-      handleDisconnect();
-    });
-
-    return () => {
-      clearInterval(interval);
-      disconnectSubscription.remove();
-    };
+    return () => clearInterval(interval);
   }, [connectedDevice]);
 
-  // Radar blinking effect
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
@@ -91,85 +80,53 @@ const SearchActionsScreen = ({
 
     animation.start();
 
-    return () => animation.stop(); // Stop animation on unmount
+    return () => animation.stop();
   }, [opacity]);
 
-  // Handle disconnect
-  const handleDisconnect = () => {
-    setDisconnectModalVisible(true);
-    // Immediately navigate back
-    navigation.goBack();
-  };
+  // Reconnection logic
+  const reconnectDevice = async () => {
+    if (!connectedDevice) return;
 
-  // Placeholder functions for buzzer and light
-  const handleBuzzer = () => {
-    console.log("Buzzer button pressed");
-    // Implement BLE write commands here
-  };
-
-  const handleLight = () => {
-    console.log("Light button pressed");
-    // Implement BLE write commands here
+    try {
+      await connectedDevice.connect();
+      console.log("Reconnected to ESP32 successfully.");
+    } catch (error) {
+      console.error("Error reconnecting to ESP32:", error);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Logo and Header */}
       <Image source={require("../assets/imgs/logo.png")} style={styles.logo} />
-      <Text style={styles.searchItHeader}>search it.</Text>
-
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1E88E5" />
-        </TouchableOpacity>
-      </View>
+      <Text style={styles.title}>search it.</Text>
 
       <View style={styles.content}>
-        <Ionicons
-          name="search"
-          size={40}
-          color="#1E88E5"
-          style={styles.searchIcon}
-        />
-        <Text style={styles.title}>search it.</Text>
         <Text style={styles.description}>
           You may now perform search actions.
         </Text>
 
-        {/* RSSI Display with updated format */}
         <Animated.View style={[styles.rssiContainer, { opacity }]}>
           <Text style={styles.rssiLabel}>
-            Your <Text style={styles.cardText}>{objectName}</Text>
-          </Text>
-          <Text style={styles.rssiValue}>
+            Your <Text style={styles.cardText}>{objectName}</Text>{" "}
             {rssi !== null
-              ? `is ${proximity} away from you`
+              ? `${rssi} (${proximity})`
               : "is searching for signal..."}
           </Text>
         </Animated.View>
       </View>
 
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.actionButton} onPress={handleBuzzer}>
-          <Ionicons name="volume-high" size={24} color="#1E88E5" />
-          <Text style={styles.actionText}>Buzzer</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton} onPress={handleLight}>
-          <Ionicons name="flash" size={24} color="#1E88E5" />
-          <Text style={styles.actionText}>Light</Text>
+        <TouchableOpacity style={styles.actionButton} onPress={reconnectDevice}>
+          <Ionicons name="refresh" size={24} color="#1E88E5" />
+          <Text style={styles.actionText}>Reconnect</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Footer */}
       <Text style={styles.footerText}>
         Search It, 2025. All Rights Reserved.
       </Text>
 
-      {/* Disconnection Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -183,9 +140,7 @@ const SearchActionsScreen = ({
               Connection Lost
             </Text>
             <Text style={styles.modalText}>
-              You have been disconnected due to distance limitations, ensure you
-              are within the 10-15 meters distance away from the microcontroller
-              and keep the bluetooth on.
+              You have been disconnected. Please ensure you are within range.
             </Text>
             <TouchableOpacity
               style={styles.modalButton}
@@ -207,41 +162,24 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: 60,
-    height: 60,
+    width: 100,
+    height: 100,
     alignSelf: "center",
     marginBottom: 10,
     resizeMode: "contain",
   },
-  searchItHeader: {
-    fontSize: 26,
+  title: {
+    fontSize: 48,
     fontWeight: "bold",
     color: "#1E88E5",
     textAlign: "center",
-    marginTop: 8,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 20,
-  },
-  backButton: {
-    padding: 5,
+    marginBottom: 24,
   },
   content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
-  },
-  searchIcon: {
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: "bold",
-    color: "#1E88E5",
-    marginBottom: 24,
   },
   description: {
     fontSize: 16,
@@ -264,11 +202,6 @@ const styles = StyleSheet.create({
   cardText: {
     color: "#1E88E5",
     fontWeight: "bold",
-  },
-  rssiValue: {
-    fontSize: 16,
-    color: "#666666",
-    marginTop: 5,
   },
   actionButtons: {
     flexDirection: "row",
@@ -293,7 +226,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
