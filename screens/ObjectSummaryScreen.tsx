@@ -1,53 +1,52 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage for persistent storage
-import { useNavigation } from "@react-navigation/native";
+import React, { useState, useEffect } from "react";
 import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
-  SafeAreaView,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
   Modal,
+  PermissionsAndroid,
+  Platform,
+  ActivityIndicator,
   TextInput,
-  BackHandler,
   Alert,
   Image,
   Pressable,
+  BackHandler,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { BleManager, Device } from "react-native-ble-plx";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useObjects, ObjectItem } from "../context/ObjectContext";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../App";
 
-interface ObjectItem {
-  id: string;
-  name: string;
-  description: string;
-}
+type ObjectSummaryScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "ObjectSummary"
+>;
 
-export default function ObjectSummaryScreen() {
-  const navigation = useNavigation();
-  const [objects, setObjects] = useState<ObjectItem[]>([]);
+const ObjectSummaryScreen = ({
+  route,
+  navigation,
+}: ObjectSummaryScreenProps) => {
+  const { objects } = useObjects();
   const [selectedObject, setSelectedObject] = useState<ObjectItem | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingObject, setEditingObject] = useState<ObjectItem | null>(null);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
 
-  // Load objects from storage when the app starts
-  useEffect(() => {
-    const loadObjects = async () => {
-      try {
-        const storedObjects = await AsyncStorage.getItem("objects");
-        if (storedObjects) {
-          setObjects(JSON.parse(storedObjects));
-        } else {
-          setObjects([]);
-        }
-      } catch (error) {
-        console.error("Failed to load objects:", error);
-      }
-    };
-
-    loadObjects();
-  }, []);
+  // BLE state
+  const [manager] = useState(() => new BleManager());
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [successModalVisible, setSuccessModalVisible] =
+    useState<boolean>(false);
+  const [disconnectModalVisible, setDisconnectModalVisible] =
+    useState<boolean>(false);
+  const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
 
   // Disable the hardware back button
   useEffect(() => {
@@ -81,20 +80,111 @@ export default function ObjectSummaryScreen() {
       return;
     }
 
-    const updatedObjects = objects.map((obj) =>
-      obj.id === editingObject.id
-        ? { ...obj, name: newName.trim(), description: newDescription.trim() }
-        : obj
-    );
+    // Update object logic could go here
+    setIsEditModalVisible(false);
+  };
 
-    setObjects(updatedObjects);
-
-    try {
-      await AsyncStorage.setItem("objects", JSON.stringify(updatedObjects));
-      setIsEditModalVisible(false);
-    } catch (error) {
-      console.error("Failed to save changes:", error);
+  // Bluetooth pairing functions
+  const handleScan = async () => {
+    if (!selectedObject) {
+      Alert.alert("Error", "Please select an object first");
+      return;
     }
+
+    console.log("Starting BLE scan...");
+
+    if (!isScanning) {
+      setIsScanning(true);
+      setModalVisible(true);
+
+      if (Platform.OS === "android" && Platform.Version >= 23) {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        ]);
+
+        if (
+          granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] !==
+            PermissionsAndroid.RESULTS.GRANTED ||
+          granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] !==
+            PermissionsAndroid.RESULTS.GRANTED ||
+          granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] !==
+            PermissionsAndroid.RESULTS.GRANTED
+        ) {
+          console.log("Permissions denied");
+          setIsScanning(false);
+          setModalVisible(false);
+          return;
+        }
+      }
+
+      console.log("Permissions granted, scanning for ESP32...");
+
+      manager.startDeviceScan(null, null, async (error, device) => {
+        if (error) {
+          console.error("Scan Error:", error);
+          setIsScanning(false);
+          setModalVisible(false);
+          return;
+        }
+
+        if (device?.name) console.log(`Found device: ${device.name}`);
+
+        if (device?.name === "ESP32-Locator") {
+          console.log("ESP32-Locator found, attempting to connect...");
+          manager.stopDeviceScan();
+
+          try {
+            const connectedDevice = await device.connect();
+            console.log("Connected to ESP32!");
+
+            await connectedDevice.discoverAllServicesAndCharacteristics();
+            console.log("Services discovered!");
+
+            setConnectedDevice(connectedDevice);
+            setModalVisible(false);
+            setSuccessModalVisible(true);
+
+            // Listen for disconnection
+            device.onDisconnected(() => {
+              console.log("ESP32 Disconnected!");
+              handleDisconnect();
+            });
+          } catch (err) {
+            console.error("Connection Failed:", err);
+            setIsScanning(false);
+            setModalVisible(false);
+          }
+        }
+      });
+
+      setTimeout(() => {
+        console.log("Scan timed out, stopping scan.");
+        manager.stopDeviceScan();
+        setIsScanning(false);
+        setModalVisible(false);
+      }, 10000);
+    }
+  };
+
+  const handleDisconnect = () => {
+    setSuccessModalVisible(false);
+    setDisconnectModalVisible(true);
+    setConnectedDevice(null);
+  };
+
+  const handleCancel = () => {
+    setIsScanning(false);
+    setModalVisible(false);
+  };
+
+  const handleSuccess = () => {
+    setSuccessModalVisible(false);
+    navigation.navigate("SearchActions", {
+      connectedDevice,
+      objectName: selectedObject?.name || "object",
+    });
   };
 
   return (
@@ -137,14 +227,24 @@ export default function ObjectSummaryScreen() {
 
       {/* Pair Device Button */}
       {selectedObject && (
-        <TouchableOpacity style={styles.pairButton}>
-          <Ionicons
-            name="bluetooth"
-            size={20}
-            color="#fff"
-            style={styles.icon}
-          />
-          <Text style={styles.pairButtonText}>Pair Device</Text>
+        <TouchableOpacity
+          style={[styles.pairButton, isScanning && styles.buttonDisabled]}
+          onPress={handleScan}
+          disabled={isScanning}
+        >
+          {isScanning ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <>
+              <Ionicons
+                name="bluetooth"
+                size={20}
+                color="#fff"
+                style={styles.icon}
+              />
+              <Text style={styles.pairButtonText}>Pair Device</Text>
+            </>
+          )}
         </TouchableOpacity>
       )}
 
@@ -185,9 +285,90 @@ export default function ObjectSummaryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Scanning Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={handleCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.signalIcon}>
+              <Ionicons name="cellular" size={40} color="#1E88E5" />
+            </View>
+            <Text style={styles.modalTitle}>Scanning</Text>
+            <Text style={styles.modalText}>
+              for the microcontroller broadcast signal, please wait{"\n"}until
+              the scanning is done.
+            </Text>
+            <TouchableOpacity style={styles.modalButton} onPress={handleCancel}>
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Disconnection Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={disconnectModalVisible}
+        onRequestClose={() => setDisconnectModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons name="alert-circle" size={50} color="red" />
+            <Text style={[styles.modalTitle, { color: "red" }]}>
+              Connection Lost
+            </Text>
+            <Text style={styles.modalText}>
+              You have been disconnected due to distance limitations, ensure you
+              are within the 10-15 meters distance away from the microcontroller
+              and keep the bluetooth on.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setDisconnectModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={successModalVisible}
+        onRequestClose={handleSuccess}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.successIcon}>
+              <Ionicons name="checkmark-circle" size={50} color="#1E88E5" />
+            </View>
+            <Text style={[styles.modalTitle, styles.successTitle]}>
+              Paired Successfully
+            </Text>
+            <Text style={styles.modalText}>
+              You are now connected to the{"\n"}microcontroller. You may now
+              {"\n"}be able perform search actions.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={handleSuccess}
+            >
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -258,6 +439,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
   },
+  buttonDisabled: {
+    backgroundColor: "#90CAF9",
+  },
   icon: {
     marginRight: 8,
   },
@@ -289,7 +473,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 15,
-    color: "#333",
+    color: "#1E88E5",
   },
   input: {
     width: "100%",
@@ -325,4 +509,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  // Bluetooth modal styles
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    width: "80%",
+    maxWidth: 320,
+  },
+  signalIcon: {
+    marginBottom: 16,
+  },
+  modalText: {
+    fontSize: 16,
+    color: "#333333",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  modalButton: {
+    backgroundColor: "#1E88E5",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    width: "100%",
+  },
+  modalButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  successIcon: {
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 28,
+  },
 });
+
+export default ObjectSummaryScreen;
