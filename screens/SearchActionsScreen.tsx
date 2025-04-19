@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Device } from "react-native-ble-plx";
+import { Device, BleManager, State } from "react-native-ble-plx";
 import { RootStackParamList } from "../App";
 
 type SearchActionsScreenProps = NativeStackScreenProps<
@@ -26,11 +26,10 @@ const SearchActionsScreen = ({
   const { connectedDevice, objectName = "object" } = route.params || {};
   const [rssi, setRssi] = useState<number | null>(null);
   const [proximity, setProximity] = useState<string>("Unknown");
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  // Modal states
   const [disconnectModalVisible, setDisconnectModalVisible] =
     useState<boolean>(false);
+  const manager = useRef(new BleManager()).current; // BLE Manager instance
+  const opacity = useRef(new Animated.Value(1)).current;
 
   // Determine proximity based on RSSI
   const getProximityLabel = (rssiValue: number): string => {
@@ -63,6 +62,7 @@ const SearchActionsScreen = ({
   }, [connectedDevice]);
 
   useEffect(() => {
+    // Radar blinking effect
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -82,6 +82,21 @@ const SearchActionsScreen = ({
 
     return () => animation.stop();
   }, [opacity]);
+
+  useEffect(() => {
+    // Monitor Bluetooth state
+    const subscription = manager.onStateChange((state) => {
+      if (state === State.PoweredOff) {
+        handleDisconnect();
+      }
+    }, true);
+
+    return () => subscription.remove();
+  }, [manager]);
+
+  const handleDisconnect = () => {
+    setDisconnectModalVisible(true);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -134,10 +149,10 @@ const SearchActionsScreen = ({
           <View style={styles.modalContent}>
             <Ionicons name="alert-circle" size={50} color="red" />
             <Text style={[styles.modalTitle, { color: "red" }]}>
-              Connection Lost
+              Disconnected
             </Text>
             <Text style={styles.modalText}>
-              You have been disconnected. Please ensure you are within range.
+              Please ensure you are within range and Bluetooth is turned on.
             </Text>
             <TouchableOpacity
               style={styles.modalButton}
@@ -162,8 +177,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: 80, // Reduced size of the logo
-    height: 80,
+    width: 50, // Further reduced size of the logo
+    height: 50,
     alignSelf: "center",
     marginBottom: 10,
     resizeMode: "contain",

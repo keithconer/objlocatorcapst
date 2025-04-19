@@ -1,3 +1,5 @@
+import React, { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "./screens/HomeScreen";
@@ -20,6 +22,18 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  const [initialRoute, setInitialRoute] =
+    useState<keyof RootStackParamList>("Home");
+
+  useEffect(() => {
+    const checkFirstLaunch = async () => {
+      const hasAddedObjects = await AsyncStorage.getItem("hasAddedObjects");
+      setInitialRoute(hasAddedObjects ? "ObjectSummary" : "Home");
+    };
+
+    checkFirstLaunch();
+  }, []);
+
   return (
     <ObjectProvider>
       <NavigationContainer>
