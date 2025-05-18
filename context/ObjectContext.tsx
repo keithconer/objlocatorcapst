@@ -13,6 +13,11 @@ export interface ObjectItem {
 interface ObjectContextType {
   objects: ObjectItem[];
   addObject: (object: Omit<ObjectItem, "id">) => Promise<void>;
+  renameObject: (
+    id: string,
+    name: string,
+    description?: string
+  ) => Promise<void>;
   getObjectCount: () => number;
   MAX_OBJECTS: number;
   selectedObject: ObjectItem | null;
@@ -67,6 +72,39 @@ export const ObjectProvider: React.FC<{ children: React.ReactNode }> = ({
     await saveObjects(updatedObjects);
   };
 
+  // Add renameObject function to update object name and description
+  const renameObject = async (
+    id: string,
+    name: string,
+    description?: string
+  ) => {
+    const updatedObjects = objects.map((obj) => {
+      if (obj.id === id) {
+        return {
+          ...obj,
+          name,
+          // Keep existing description if new one is not provided
+          description:
+            description !== undefined ? description : obj.description,
+        };
+      }
+      return obj;
+    });
+
+    setObjects(updatedObjects);
+    await saveObjects(updatedObjects);
+
+    // Update selectedObject if it's the one being renamed
+    if (selectedObject?.id === id) {
+      setSelectedObject({
+        ...selectedObject,
+        name,
+        description:
+          description !== undefined ? description : selectedObject.description,
+      });
+    }
+  };
+
   const getObjectCount = () => objects.length;
 
   return (
@@ -74,6 +112,7 @@ export const ObjectProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         objects,
         addObject,
+        renameObject,
         getObjectCount,
         MAX_OBJECTS,
         selectedObject,

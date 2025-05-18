@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,11 +18,10 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BleManager, Device } from "react-native-ble-plx";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useObjects, ObjectItem } from "../context/ObjectContext";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../App";
+import { BleManager, type Device } from "react-native-ble-plx";
+import { useObjects, type ObjectItem } from "../context/ObjectContext";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../App";
 
 type ObjectSummaryScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -31,7 +32,7 @@ const ObjectSummaryScreen = ({
   route,
   navigation,
 }: ObjectSummaryScreenProps) => {
-  const { objects } = useObjects();
+  const { objects, renameObject } = useObjects();
   const [selectedObject, setSelectedObject] = useState<ObjectItem | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingObject, setEditingObject] = useState<ObjectItem | null>(null);
@@ -75,13 +76,23 @@ const ObjectSummaryScreen = ({
   };
 
   const handleSaveChanges = async () => {
-    if (!editingObject || !newName.trim() || !newDescription.trim()) {
-      alert("Please fill in both name and description.");
+    if (!editingObject || !newName.trim()) {
+      alert("Please fill in the name field.");
       return;
     }
 
-    // Update object logic could go here
-    setIsEditModalVisible(false);
+    try {
+      // Use the renameObject function from context
+      await renameObject(
+        editingObject.id,
+        newName.trim(),
+        newDescription.trim() || undefined
+      );
+      setIsEditModalVisible(false);
+    } catch (error) {
+      console.error("Failed to save changes:", error);
+      alert("Failed to save changes. Please try again.");
+    }
   };
 
   // Bluetooth pairing functions
@@ -268,7 +279,7 @@ const ObjectSummaryScreen = ({
               style={styles.input}
               value={newDescription}
               onChangeText={setNewDescription}
-              placeholder="Enter new object description"
+              placeholder="Enter new object description (optional)"
             />
             <TouchableOpacity
               style={styles.saveButton}

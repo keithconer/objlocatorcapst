@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+"use client";
+
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,9 +12,9 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Device, BleManager, State } from "react-native-ble-plx";
-import { RootStackParamList } from "../App";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { BleManager, State } from "react-native-ble-plx";
+import type { RootStackParamList } from "../App";
 
 type SearchActionsScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -136,29 +138,32 @@ const SearchActionsScreen = ({
         Search It, 2025. All Rights Reserved.
       </Text>
 
+      {/* Disconnection Modal - Using the same style as in ObjectSummaryScreen */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={disconnectModalVisible}
         onRequestClose={() => {
           setDisconnectModalVisible(false);
-          navigation.goBack(); // Navigate back to Object Summary screen
+          navigation.goBack();
         }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Ionicons name="alert-circle" size={50} color="red" />
             <Text style={[styles.modalTitle, { color: "red" }]}>
-              Disconnected
+              Connection Lost
             </Text>
             <Text style={styles.modalText}>
-              Please ensure you are within range and Bluetooth is turned on.
+              You have been disconnected due to distance limitations, ensure you
+              are within the 10-15 meters distance away from the microcontroller
+              and keep the bluetooth on.
             </Text>
             <TouchableOpacity
               style={styles.modalButton}
               onPress={() => {
                 setDisconnectModalVisible(false);
-                navigation.goBack(); // Navigate back to Object Summary screen
+                navigation.goBack();
               }}
             >
               <Text style={styles.modalButtonText}>Go Back</Text>
